@@ -1,0 +1,36 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy application
+        uses: appleboy/ssh-action@v1.2.0
+
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+
+          script: |
+            cd /var/www/getscored
+
+            git pull origin main
+
+            # Backend
+            cd backend
+            npm install
+            npm run build
+            pm2 restart getscored-api
+
+            # Frontend
+            cd ../frontend
+            npm install
+            npm run build
+            pm2 restart getscored-web
