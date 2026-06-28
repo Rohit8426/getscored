@@ -10,6 +10,8 @@ async function bootstrap() {
   });
 }
 
+
+// updsated code 
 bootstrap().catch((error) => {
   console.error("Failed to start backend API", error);
   process.exit(1);
