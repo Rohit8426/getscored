@@ -8,7 +8,26 @@ import { useLeadModal } from "@/components/ui/LeadModalContext";
 import type { LeadProduct } from "@/components/ui/LeadModal";
 
 /* ─── Nav structure ─────────────────────────────────────────── */
-const navItems = [
+interface NavSubItem {
+  label: string;
+  href: string;
+}
+
+interface NavGroup {
+  group: string;
+  icon?: React.ReactNode;
+  href?: string;
+  items: NavSubItem[];
+}
+
+interface NavTopItem {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  children?: NavGroup[];
+}
+
+const navItems: NavTopItem[] = [
   {
     label: "Credit Score",
     href: "/credit-score",
