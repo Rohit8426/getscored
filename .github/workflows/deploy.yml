@@ -27,17 +27,28 @@ jobs:
           npm ci
           npm run build
 
+      - name: Assemble frontend standalone bundle
+        run: |
+          cd frontend
+          mkdir -p deploy
+          cp -r .next/standalone/. deploy/
+          mkdir -p deploy/.next
+          cp -r .next/static deploy/.next/static
+          if [ -d public ]; then cp -r public deploy/public; fi
+
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-dist
-          path: backend/dist   # adjust to your actual build output folder
+          path: backend/dist
+          if-no-files-found: error
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: frontend/dist  # or frontend/.next, frontend/build, etc.
+          path: frontend/deploy
+          if-no-files-found: error
 
   deploy:
     needs: build
@@ -72,20 +83,15 @@ jobs:
           script: |
             cd /var/www/getscored
 
-            # move backend build in
+            # backend
             rm -rf backend/dist
             mv incoming/backend-dist backend/dist
-
-            # install ONLY production deps (no build step, low memory)
             cd backend
             npm ci --omit=dev
             pm2 restart getscored-api
 
-            # move frontend build in
-            cd ../
-            rm -rf frontend/dist
-            mv incoming/frontend-dist frontend/dist
-
-            cd frontend
-            npm ci --omit=dev
+            # frontend (standalone Next.js — no npm install needed!)
+            cd /var/www/getscored
+            rm -rf frontend-standalone
+            mv incoming/frontend-dist frontend-standalone
             pm2 restart getscored-web
