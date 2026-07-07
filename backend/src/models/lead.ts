@@ -43,3 +43,5 @@ Lead.init(
     timestamps: true,
   }
 );
+
+// export default Lead;
