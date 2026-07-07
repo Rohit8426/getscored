@@ -6,31 +6,86 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Deploy application
-        uses: appleboy/ssh-action@v1.2.0
+      - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build backend
+        run: |
+          cd backend
+          npm ci
+          npm run build
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist   # adjust to your actual build output folder
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist  # or frontend/.next, frontend/build, etc.
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-dist
+          path: backend-dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist
+
+      - name: Copy build files to server
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          source: "backend-dist/*,frontend-dist/*"
+          target: "/var/www/getscored/incoming"
+          strip_components: 0
 
+      - name: Restart services on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             cd /var/www/getscored
 
-            git pull origin main
+            # move backend build in
+            rm -rf backend/dist
+            mv incoming/backend-dist backend/dist
 
-            # Backend
+            # install ONLY production deps (no build step, low memory)
             cd backend
-            npm install
-            npm run build
+            npm ci --omit=dev
             pm2 restart getscored-api
 
-            # Frontend
-            cd ../frontend
-            npm install
-            npm run build
+            # move frontend build in
+            cd ../
+            rm -rf frontend/dist
+            mv incoming/frontend-dist frontend/dist
+
+            cd frontend
+            npm ci --omit=dev
             pm2 restart getscored-web
